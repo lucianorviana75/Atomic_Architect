@@ -39,3 +39,32 @@ Certifica-te de ter o [Node.js](https://nodejs.org/) instalado na tua máquina.
 1. **Clonar o repositório:**
    ```bash
    git clone [https://github.com/teu-usuario/atomic-architect-3d.git](https://github.com/teu-usuario/atomic-architect-3d.git)
+Entrar no diretório do projeto:
+
+Bash
+cd atomic-architect-3d
+Instalar as dependências:
+
+Bash
+npm install
+# ou
+yarn install
+Iniciar o servidor de desenvolvimento:
+
+Bash
+npm run dev
+# ou
+npm start
+Abra o navegador e aceda a http://localhost:3000 (ou a porta indicada no terminal).
+
+🧪 Exemplo de Uso (Ouro - Au)
+Para visualizar o Ouro-197 no simulador:
+
+Protões (Z): 79
+
+Neutrões: 118 (para atingir a massa de ~196.97 u)
+
+Eletrões: 79 (Estado Neutro)
+
+📄 Licença
+Este projeto está sob a licença MIT. Sente-te à vontade para utilizar e contribuir!

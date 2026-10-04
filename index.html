@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Atomic Architect 3D - 118 Elementos</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f0f15; color: white; }
+    #ui { position: absolute; top: 15px; left: 15px; background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(8px); padding: 20px; border-radius: 12px; width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
+    .nav-tabs { display: flex; gap: 6px; margin-bottom: 15px; }
+    .tab-btn { flex: 1; padding: 8px 4px; border: none; background: #2a2a3c; color: #aaa; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; transition: 0.3s; }
+    .tab-btn.active { background: #3b82f6; color: white; }
+    .control { margin-bottom: 12px; }
+    label { display: block; font-size: 13px; margin-bottom: 4px; color: #ccc; }
+    input[type=range] { width: 100%; accent-color: #3b82f6; }
+    #info { margin-top: 15px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .state-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; background: #333; margin-top: 5px; }
+    .charge-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 5px; background: #444; }
+    .btn-switch { width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; background: #dc2626; color: white; transition: 0.3s; }
+    .btn-switch.on { background: #16a34a; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+  <div id="ui">
+    <h2>Atomic Architect 3D</h2>
+    
+    <div class="nav-tabs">
+      <button class="tab-btn active" id="btn-atom" onclick="setViewMode('atom')">Átomo</button>
+      <button class="tab-btn" id="btn-material" onclick="setViewMode('material')">Material</button>
+      <button class="tab-btn" id="btn-circuit" onclick="setViewMode('circuit')">⚡ Circuito</button>
+    </div>
+
+    <!-- Controles Principais do Elemento -->
+    <div id="panel-controls">
+      <div class="control">
+        <label>Protões (Z): <span id="p-val">29</span></label>
+        <input type="range" id="protons" min="1" max="118" value="29">
+      </div>
+      <div class="control">
+        <label>Neutrões: <span id="n-val">35</span></label>
+        <input type="range" id="neutrons" min="0" max="180" value="35">
+      </div>
+      <div class="control">
+        <label>Eletrões: <span id="e-val">29</span></label>
+        <input type="range" id="electrons" min="0" max="118" value="29">
+      </div>
+      <div class="control">
+        <label>Temperatura: <span id="temp-val">25</span> °C</label>
+        <input type="range" id="temp" min="-273" max="3500" value="25">
+      </div>
+    </div>
+
+    <!-- Painel Circuito Elétrico -->
+    <div id="panel-circuit" style="display:none;">
+      <div class="control">
+        <button id="switch-btn" class="btn-switch" onclick="toggleCircuit()">Circuito Desligado ⭕</button>
+      </div>
+      <div class="control">
+        <label>Voltagem (V): <span id="volt-val">0</span> V</label>
+        <input type="range" id="volts" min="0" max="220" value="0">
+      </div>
+      <p style="font-size: 12px; color: #aaa;">Corrente Calculada: <b id="current-val" style="color:#60a5fa;">0.00 A</b></p>
+    </div>
+
+    <!-- Painel de Informações -->
+    <div id="info">
+      <h3 style="margin:0 0 5px 0;">
+        <span id="elem-name" style="color:#60a5fa;">Cobre (Cu)</span>
+        <span id="elem-charge" class="charge-badge">Neutro</span>
+      </h3>
+      <p style="margin: 3px 0; font-size: 13px;">Massa Atómica: <span id="elem-mass">63.546</span> u</p>
+      <p style="margin: 3px 0; font-size: 13px;">Estado: <span id="elem-state" class="state-badge">Sólido</span></p>
+    </div>
+  </div>
+
+  <script>
+    // Tabela Periódica Completa (Todos os 118 Elementos)
+    const ELEMENTS_DB = {
+      1: { name: "Hidrogénio (H)", mass: 1.008, melt: -259, boil: -252, color: 0xa3e635, isGas: true, res: 1000 },
+      2: { name: "Hélio (He)", mass: 4.002, melt: -272, boil: -268, color: 0x38bdf8, isGas: true, res: 1000 },
+      3: { name: "Lítio (Li)", mass: 6.941, melt: 180, boil: 1342, color: 0xd1d5db, isGas: false, res: 10.8 },
+      4: { name: "Berílio (Be)", mass: 9.012, melt: 1287, boil: 2469, color: 0x9ca3af, isGas: false, res: 3.6 },
+      5: { name: "Boro (B)", mass: 10.81, melt: 2076, boil: 3927, color: 0x78716c, isGas: false, res: 500 },
+      6: { name: "Carbono (C)", mass: 12.011, melt: 3550, boil: 4827, color: 0x333333, isGas: false, res: 50 },
+      7: { name: "Azoto (N)", mass: 14.007, melt: -210, boil: -195, color: 0x818cf8, isGas: true, res: 1000 },
+      8: { name: "Oxigénio (O)", mass: 15.999, melt: -218, boil: -182, color: 0x38bdf8, isGas: true, res: 1000 },
+      9: { name: "Flúor (F)", mass: 18.998, melt: -219, boil: -188, color: 0x4ade80, isGas: true, res: 1000 },
+      10: { name: "Néon (Ne)", mass: 20.180, melt: -248, boil: -246, color: 0xf43f5e, isGas: true, res: 1000 },
+      11: { name: "Sódio (Na)", mass: 22.990, melt: 98, boil: 883, color: 0xeab308, isGas: false, res: 4.7 },
+      12: { name: "Magnésio (Mg)", mass: 24.305, melt: 650, boil: 1090, color: 0xd1d5db, isGas: false, res: 4.4 },
+      13: { name: "Alumínio (Al)", mass: 26.982, melt: 660, boil: 2467, color: 0xa1a1aa, isGas: false, res: 2.8 },
+      14: { name: "Silício (Si)", mass: 28.085, melt: 1414, boil: 3265, color: 0x64748b, isGas: false, res: 100 },
+      15: { name: "Fósforo (P)", mass: 30.974, melt: 44, boil: 280, color: 0xf97316, isGas: false, res: 500 },
+      16: { name: "Enxofre (S)", mass: 32.060, melt: 115, boil: 444, color: 0xfacc15, isGas: false, res: 1000 },
+      17: { name: "Cloro (Cl)", mass: 35.450, melt: -101, boil: -34, color: 0x84cc16, isGas: true, res: 1000 },
+      18: { name: "Árgon (Ar)", mass: 39.948, melt: -189, boil: -185, color: 0xc084fc, isGas: true, res: 1000 },
+      19: { name: "Potássio (K)", mass: 39.098, melt: 63, boil: 759, color: 0xa855f7, isGas: false, res: 7.2 },
+      20: { name: "Cálcio (Ca)", mass: 40.078, melt: 842, boil: 1484, color: 0xe2e8f0, isGas: false, res: 3.3 },
+      21: { name: "Escândio (Sc)", mass: 44.956, melt: 1541, boil: 2836, color: 0xb0b0b0, isGas: false, res: 5.6 },
+      22: { name: "Titânio (Ti)", mass: 47.867, melt: 1668, boil: 3287, color: 0x808080, isGas: false, res: 42.0 },
+      23: { name: "Vanádio (V)", mass: 50.942, melt: 1910, boil: 3407, color: 0xa6a6a6, isGas: false, res: 20.0 },
+      24: { name: "Crómio (Cr)", mass: 51.996, melt: 1907, boil: 2671, color: 0x8a9ea7, isGas: false, res: 12.5 },
+      25: { name: "Manganês (Mn)", mass: 54.938, melt: 1246, boil: 2061, color: 0x9e9e9e, isGas: false, res: 144.0 },
+      26: { name: "Ferro (Fe)", mass: 55.845, melt: 1538, boil: 2862, color: 0x71717a, isGas: false, res: 10.0 },
+      27: { name: "Cobalto (Co)", mass: 58.933, melt: 1495, boil: 2927, color: 0x8090a0, isGas: false, res: 6.2 },
+      28: { name: "Níquel (Ni)", mass: 58.693, melt: 1455, boil: 2913, color: 0x90a0a0, isGas: false, res: 6.9 },
+      29: { name: "Cobre (Cu)", mass: 63.546, melt: 1085, boil: 2562, color: 0xb87333, isGas: false, res: 1.7 },
+      30: { name: "Zinco (Zn)", mass: 65.380, melt: 420, boil: 907, color: 0xa1a1aa, isGas: false, res: 5.9 },
+      31: { name: "Gálio (Ga)", mass: 69.723, melt: 30, boil: 2204, color: 0xc0c0c0, isGas: false, res: 27.0 },
+      32: { name: "Germânio (Ge)", mass: 72.630, melt: 938, boil: 2833, color: 0x668888, isGas: false, res: 100 },
+      33: { name: "Arsénio (As)", mass: 74.922, melt: 817, boil: 614, color: 0x778877, isGas: false, res: 33.0 },
+      34: { name: "Selénio (Se)", mass: 78.971, melt: 221, boil: 685, color: 0x998877, isGas: false, res: 200 },
+      35: { name: "Bromo (Br)", mass: 79.904, melt: -7, boil: 59, color: 0xaa3333, isGas: false, res: 1000 },
+      36: { name: "Criptón (Kr)", mass: 83.798, melt: -157, boil: -153, color: 0x77ccff, isGas: true, res: 1000 },
+      37: { name: "Rubídio (Rb)", mass: 85.468, melt: 39, boil: 688, color: 0xaa22aa, isGas: false, res: 12.0 },
+      38: { name: "Estrôncio (Sr)", mass: 87.62, melt: 777, boil: 1382, color: 0xcccccc, isGas: false, res: 13.0 },
+      39: { name: "Ítrio (Y)", mass: 88.906, melt: 1526, boil: 3336, color: 0xbbbbbb, isGas: false, res: 60.0 },
+      40: { name: "Zircónio (Zr)", mass: 91.224, melt: 1855, boil: 4409, color: 0x99aaaa, isGas: false, res: 42.0 },
+      41: { name: "Nióbio (Nb)", mass: 92.906, melt: 2477, boil: 4744, color: 0x8899aa, isGas: false, res: 15.0 },
+      42: { name: "Molibdénio (Mo)", mass: 95.95, melt: 2623, boil: 4639, color: 0x778899, isGas: false, res: 5.3 },
+      43: { name: "Tecnécio (Tc)", mass: 98, melt: 2157, boil: 4265, color: 0x779999, isGas: false, res: 20.0 },
+      44: { name: "Ruténio (Ru)", mass: 101.07, melt: 2334, boil: 4150, color: 0x667788, isGas: false, res: 7.1 },
+      45: { name: "Ródio (Rh)", mass: 102.91, melt: 1964, boil: 3695, color: 0x778899, isGas: false, res: 4.3 },
+      46: { name: "Paládio (Pd)", mass: 106.42, melt: 1555, boil: 2963, color: 0x8899a0, isGas: false, res: 10.5 },
+      47: { name: "Prata (Ag)", mass: 107.87, melt: 962, boil: 2212, color: 0xe5e7eb, isGas: false, res: 1.5 },
+      48: { name: "Cádmio (Cd)", mass: 112.41, melt: 321, boil: 767, color: 0xaabbcc, isGas: false, res: 7.3 },
+      49: { name: "Índio (In)", mass: 114.82, melt: 157, boil: 2072, color: 0x9999aa, isGas: false, res: 8.0 },
+      50: { name: "Estanho (Sn)", mass: 118.71, melt: 232, boil: 2602, color: 0x94a3b8, isGas: false, res: 11.0 },
+      51: { name: "Antimónio (Sb)", mass: 121.76, melt: 631, boil: 1587, color: 0x888899, isGas: false, res: 41.0 },
+      52: { name: "Telúrio (Te)", mass: 127.60, melt: 450, boil: 988, color: 0x887766, isGas: false, res: 200 },
+      53: { name: "Iodo (I)", mass: 126.90, melt: 114, boil: 184, color: 0x553355, isGas: false, res: 1000 },
+      54: { name: "Xénon (Xe)", mass: 131.29, melt: -112, boil: -108, color: 0x44aacc, isGas: true, res: 1000 },
+      55: { name: "Césio (Cs)", mass: 132.91, melt: 28, boil: 671, color: 0xcc9922, isGas: false, res: 20.0 },
+      56: { name: "Bário (Ba)", mass: 137.33, melt: 727, boil: 1897, color: 0x00cc00, isGas: false, res: 33.0 },
+      57: { name: "Lantânio (La)", mass: 138.91, melt: 920, boil: 3464, color: 0x70d4ff, isGas: false, res: 61.0 },
+      58: { name: "Cério (Ce)", mass: 140.12, melt: 798, boil: 3443, color: 0xffffc7, isGas: false, res: 74.0 },
+      59: { name: "Praseodímio (Pr)", mass: 140.91, melt: 931, boil: 3520, color: 0xd9ffc7, isGas: false, res: 70.0 },
+      60: { name: "Neodímio (Nd)", mass: 144.24, melt: 1021, boil: 3074, color: 0xc7ffc7, isGas: false, res: 64.0 },
+      61: { name: "Promécio (Pm)", mass: 145, melt: 1042, boil: 3000, color: 0xa3ffc7, isGas: false, res: 75.0 },
+      62: { name: "Samário (Sm)", mass: 150.36, melt: 1072, boil: 1794, color: 0x80ffc7, isGas: false, res: 94.0 },
+      63: { name: "Európio (Eu)", mass: 151.96, melt: 822, boil: 1529, color: 0x61ffc7, isGas: false, res: 90.0 },
+      64: { name: "Gadolínio (Gd)", mass: 157.25, melt: 1313, boil: 3273, color: 0x45ffc7, isGas: false, res: 131.0 },
+      65: { name: "Térbio (Tb)", mass: 158.93, melt: 1356, boil: 3230, color: 0x30ffc7, isGas: false, res: 114.0 },
+      66: { name: "Disprósio (Dy)", mass: 162.50, melt: 1412, boil: 2567, color: 0x1fffc7, isGas: false, res: 92.0 },
+      67: { name: "Hólmio (Ho)", mass: 164.93, melt: 1474, boil: 2700, color: 0x00ff9c, isGas: false, res: 81.0 },
+      68: { name: "Érbio (Er)", mass: 167.26, melt: 1529, boil: 2868, color: 0x00e675, isGas: false, res: 86.0 },
+      69: { name: "Túlio (Tm)", mass: 168.93, melt: 1545, boil: 1950, color: 0x00d452, isGas: false, res: 67.0 },
+      70: { name: "Itérbio (Yb)", mass: 173.05, melt: 819, boil: 1196, color: 0x00bf38, isGas: false, res: 25.0 },
+      71: { name: "Lutécio (Lu)", mass: 174.97, melt: 1663, boil: 3402, color: 0x00ab24, isGas: false, res: 58.0 },
+      72: { name: "HÁfnio (Hf)", mass: 178.49, melt: 2233, boil: 4603, color: 0x4dc2ff, isGas: false, res: 33.0 },
+      73: { name: "Tântalo (Ta)", mass: 180.95, melt: 3017, boil: 5458, color: 0x4da6ff, isGas: false, res: 13.0 },
+      74: { name: "Tungsténio (W)", mass: 183.84, melt: 3422, boil: 5555, color: 0x2194d6, isGas: false, res: 5.3 },
+      75: { name: "Rénio (Re)", mass: 186.21, melt: 3186, boil: 5596, color: 0x267dab, isGas: false, res: 19.0 },
+      76: { name: "Ósmio (Os)", mass: 190.23, melt: 3033, boil: 5012, color: 0x26668d, isGas: false, res: 8.1 },
+      77: { name: "Irídio (Ir)", mass: 192.22, melt: 2446, boil: 4428, color: 0x175487, isGas: false, res: 4.7 },
+      78: { name: "Platina (Pt)", mass: 195.08, melt: 1768, boil: 3825, color: 0xd1d5db, isGas: false, res: 10.6 },
+      79: { name: "Ouro (Au)", mass: 196.97, melt: 1064, boil: 2856, color: 0xffd700, isGas: false, res: 2.2 },
+      80: { name: "Mercúrio (Hg)", mass: 200.59, melt: -39, boil: 357, color: 0xcbd5e1, isGas: false, res: 96.0 },
+      81: { name: "Tálio (Tl)", mass: 204.38, melt: 304, boil: 1473, color: 0xa6544d, isGas: false, res: 18.0 },
+      82: { name: "Chumbo (Pb)", mass: 207.20, melt: 327, boil: 1749, color: 0x475569, isGas: false, res: 20.8 },
+      83: { name: "Bismuto (Bi)", mass: 208.98, melt: 271, boil: 1564, color: 0x9e4fb3, isGas: false, res: 129.0 },
+      84: { name: "Polónio (Po)", mass: 209, melt: 254, boil: 962, color: 0xab5c00, isGas: false, res: 140.0 },
+      85: { name: "Ástato (At)", mass: 210, melt: 302, boil: 337, color: 0x754f45, isGas: false, res: 500 },
+      86: { name: "RÁdon (Rn)", mass: 222, melt: -71, boil: -62, color: 0x428296, isGas: true, res: 1000 },
+      87: { name: "Frâncio (Fr)", mass: 223, melt: 27, boil: 677, color: 0x420066, isGas: false, res: 30.0 },
+      88: { name: "RÁdio (Ra)", mass: 226, melt: 700, boil: 1737, color: 0x006600, isGas: false, res: 100.0 },
+      89: { name: "Actínio (Ac)", mass: 227, melt: 1050, boil: 3198, color: 0x70abfa, isGas: false, res: 100.0 },
+      90: { name: "Tório (Th)", mass: 232.04, melt: 1750, boil: 4788, color: 0x00baff, isGas: false, res: 15.0 },
+      91: { name: "Protactínio (Pa)", mass: 231.04, melt: 1568, boil: 4027, color: 0x00a1ff, isGas: false, res: 17.0 },
+      92: { name: "Urânio (U)", mass: 238.03, melt: 1132, boil: 4131, color: 0x15803d, isGas: false, res: 28.0 },
+      93: { name: "Neptúnio (Np)", mass: 237, melt: 644, boil: 3902, color: 0x0066ff, isGas: false, res: 120.0 },
+      94: { name: "Plutónio (Pu)", mass: 244, melt: 640, boil: 3228, color: 0x0042ff, isGas: false, res: 150.0 },
+      95: { name: "Amerício (Am)", mass: 243, melt: 1176, boil: 2607, color: 0x5418a3, isGas: false, res: 200.0 },
+      96: { name: "Cúrio (Cm)", mass: 247, melt: 1340, boil: 3110, color: 0x780c78, isGas: false, res: 200.0 },
+      97: { name: "Berquélio (Bk)", mass: 247, melt: 986, boil: 2627, color: 0x8a0c60, isGas: false, res: 200.0 },
+      98: { name: "Califórnio (Cf)", mass: 251, melt: 900, boil: 1470, color: 0xa10c4f, isGas: false, res: 200.0 },
+      99: { name: "Einsténio (Es)", mass: 252, melt: 860, boil: 996, color: 0xb30c3b, isGas: false, res: 200.0 },
+      100: { name: "Férmio (Fm)", mass: 257, melt: 1527, boil: 2000, color: 0xb30c26, isGas: false, res: 200.0 },
+      101: { name: "Mendelévio (Md)", mass: 258, melt: 827, boil: 2000, color: 0xb30c0c, isGas: false, res: 200.0 },
+      102: { name: "Nobélio (No)", mass: 259, melt: 827, boil: 2000, color: 0xc42a0c, isGas: false, res: 200.0 },
+      103: { name: "Laurêncio (Lr)", mass: 266, melt: 1627, boil: 2000, color: 0xc4460c, isGas: false, res: 200.0 },
+      104: { name: "Rutherfórdio (Rf)", mass: 267, melt: 2100, boil: 5500, color: 0xcc0000, isGas: false, res: 200.0 },
+      105: { name: "Dúbnio (Db)", mass: 268, melt: 2000, boil: 5000, color: 0xd11100, isGas: false, res: 200.0 },
+      106: { name: "Seabórgio (Sg)", mass: 269, melt: 2000, boil: 5000, color: 0xd92200, isGas: false, res: 200.0 },
+      107: { name: "Bório (Bh)", mass: 270, melt: 2000, boil: 5000, color: 0xe03300, isGas: false, res: 200.0 },
+      108: { name: "Hássio (Hs)", mass: 277, melt: 2000, boil: 5000, color: 0xe64400, isGas: false, res: 200.0 },
+      109: { name: "Meitnério (Mt)", mass: 278, melt: 2000, boil: 5000, color: 0xeb5500, isGas: false, res: 200.0 },
+      110: { name: "Darmstádio (Ds)", mass: 281, melt: 2000, boil: 5000, color: 0xf06600, isGas: false, res: 200.0 },
+      111: { name: "Roentgénio (Rg)", mass: 282, melt: 2000, boil: 5000, color: 0xf57700, isGas: false, res: 200.0 },
+      112: { name: "Copernício (Cn)", mass: 285, melt: 2000, boil: 5000, color: 0xfa8800, isGas: false, res: 200.0 },
+      113: { name: "Nihónio (Nh)", mass: 286, melt: 430, boil: 1130, color: 0xff9900, isGas: false, res: 200.0 },
+      114: { name: "Fleróvio (Fl)", mass: 289, melt: 70, boil: 150, color: 0xffaa00, isGas: false, res: 200.0 },
+      115: { name: "Moscóvio (Mc)", mass: 290, melt: 400, boil: 1100, color: 0xffbb00, isGas: false, res: 200.0 },
+      116: { name: "Livermório (Lv)", mass: 293, melt: 400, boil: 1000, color: 0xffcc00, isGas: false, res: 200.0 },
+      117: { name: "Tenessino (Ts)", mass: 294, melt: 400, boil: 550, color: 0xffdd00, isGas: false, res: 200.0 },
+      118: { name: "Oganesson (Og)", mass: 294, melt: 50, boil: 80, color: 0xffee00, isGas: true, res: 1000 }
+    };
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 4, 12);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+    const pointLight = new THREE.PointLight(0xffffff, 1.2);
+    pointLight.position.set(10, 15, 10);
+    scene.add(pointLight);
+
+    const atomGroup = new THREE.Group();
+    const materialGroup = new THREE.Group();
+    const circuitGroup = new THREE.Group();
+    scene.add(atomGroup);
+    scene.add(materialGroup);
+    scene.add(circuitGroup);
+
+    let currentView = 'atom';
+    let isCircuitOn = false;
+    let lastProton = -1;
+
+    const sphereGeo = new THREE.SphereGeometry(0.3, 16, 16);
+    const electronGeo = new THREE.SphereGeometry(0.12, 16, 16);
+    const matProton = new THREE.MeshStandardMaterial({ color: 0xef4444 });
+    const matNeutron = new THREE.MeshStandardMaterial({ color: 0x9ca3af });
+    const matElectron = new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x115522 });
+
+    let electronMeshes = [];
+    let circuitElectrons = [];
+    let materialMesh = null;
+
+    function setViewMode(mode) {
+      currentView = mode;
+      document.getElementById('btn-atom').classList.toggle('active', mode === 'atom');
+      document.getElementById('btn-material').classList.toggle('active', mode === 'material');
+      document.getElementById('btn-circuit').classList.toggle('active', mode === 'circuit');
+
+      document.getElementById('panel-controls').style.display = (mode === 'circuit') ? 'none' : 'block';
+      document.getElementById('panel-circuit').style.display = (mode === 'circuit') ? 'block' : 'none';
+
+      atomGroup.visible = (mode === 'atom');
+      materialGroup.visible = (mode === 'material');
+      circuitGroup.visible = (mode === 'circuit');
+
+      if (mode === 'circuit') {
+        buildCircuitView();
+      }
+      updateApp();
+    }
+
+    function toggleCircuit() {
+      isCircuitOn = !isCircuitOn;
+      const btn = document.getElementById('switch-btn');
+      btn.innerText = isCircuitOn ? "Circuito Ligado ⚡" : "Circuito Desligado ⭕";
+      btn.classList.toggle('on', isCircuitOn);
+      updateApp();
+    }
+
+    function buildCircuitView() {
+      while(circuitGroup.children.length > 0){ circuitGroup.remove(circuitGroup.children[0]); }
+      circuitElectrons = [];
+
+      const wireGeo = new THREE.CylinderGeometry(1.2, 1.2, 10, 32);
+      const wireMat = new THREE.MeshPhysicalMaterial({ color: 0xb87333, transparent: true, opacity: 0.4, roughness: 0.1 });
+      const wire = new THREE.Mesh(wireGeo, wireMat);
+      wire.rotation.z = Math.PI / 2;
+      circuitGroup.add(wire);
+
+      for(let i = 0; i < 40; i++) {
+        const eMesh = new THREE.Mesh(electronGeo, matElectron);
+        eMesh.position.set((Math.random() - 0.5) * 9, (Math.random() - 0.5) * 1.8, (Math.random() - 0.5) * 1.8);
+        circuitGroup.add(eMesh);
+        circuitElectrons.push(eMesh);
+      }
+    }
+
+    function updateApp() {
+      let pCount = parseInt(document.getElementById('protons').value);
+
+      // Regra genérica de protões para ajustar neutrões e eletrões automaticamente
+      if (pCount !== lastProton) {
+        lastProton = pCount;
+        const autoNeutrons = Math.round(pCount * 1.3);
+        document.getElementById('neutrons').value = autoNeutrons;
+        document.getElementById('electrons').value = pCount;
+      }
+
+      const nCount = parseInt(document.getElementById('neutrons').value);
+      const eCount = parseInt(document.getElementById('electrons').value);
+      const temp = parseInt(document.getElementById('temp').value);
+      const volts = parseInt(document.getElementById('volts').value);
+
+      document.getElementById('p-val').innerText = pCount;
+      document.getElementById('n-val').innerText = nCount;
+      document.getElementById('e-val').innerText = eCount;
+      document.getElementById('temp-val').innerText = temp;
+      document.getElementById('volt-val').innerText = volts;
+
+      const elemData = ELEMENTS_DB[pCount] || { name: `Elemento Z=${pCount}`, mass: pCount * 2, melt: 1000, boil: 2500, color: 0x888888, isGas: false, res: 100 };
+      document.getElementById('elem-name').innerText = elemData.name;
+
+      // Cálculo de Massa com base em Isótopos
+      const isotopeMass = (pCount * 1.007) + (nCount * 1.008);
+      document.getElementById('elem-mass').innerText = isotopeMass.toFixed(3);
+
+      // Carga
+      const charge = pCount - eCount;
+      const chargeBadge = document.getElementById('elem-charge');
+      if (charge === 0) {
+        chargeBadge.innerText = "Neutro";
+        chargeBadge.style.background = "#334155";
+      } else if (charge > 0) {
+        chargeBadge.innerText = `Íon (+${charge})`;
+        chargeBadge.style.background = "#ef4444";
+      } else {
+        chargeBadge.innerText = `Íon (${charge})`;
+        chargeBadge.style.background = "#3b82f6";
+      }
+
+      // Estado Físico
+      const stateBadge = document.getElementById('elem-state');
+      if (temp < elemData.melt) {
+        stateBadge.innerText = "Sólido";
+        stateBadge.style.background = "#15803d";
+      } else if (temp >= elemData.melt && temp < elemData.boil) {
+        stateBadge.innerText = "Líquido";
+        stateBadge.style.background = "#b45309";
+      } else if (temp >= elemData.boil && temp < 3000) {
+        stateBadge.innerText = "Gás";
+        stateBadge.style.background = "#2563eb";
+      } else {
+        stateBadge.innerText = "Plasma";
+        stateBadge.style.background = "#b91c1c";
+      }
+
+      const amperes = isCircuitOn ? (volts / elemData.res).toFixed(2) : "0.00";
+      document.getElementById('current-val').innerText = `${amperes} A`;
+
+      // 1. RECONSTRUÇÃO DO ÁTOMO 3D
+      while(atomGroup.children.length > 0){ atomGroup.remove(atomGroup.children[0]); }
+      electronMeshes = [];
+
+      const totalNucleus = pCount + nCount;
+      const displayNucleus = Math.min(totalNucleus, 100);
+
+      for (let i = 0; i < displayNucleus; i++) {
+        const mesh = new THREE.Mesh(sphereGeo, i < (pCount * (displayNucleus/(totalNucleus||1))) ? matProton : matNeutron);
+        const phi = Math.acos(-1 + (2 * i) / displayNucleus);
+        const theta = Math.sqrt(displayNucleus * Math.PI) * phi;
+        const r = 0.5 * Math.cbrt(displayNucleus);
+
+        mesh.position.set(r * Math.cos(theta) * Math.sin(phi), r * Math.sin(theta) * Math.sin(phi), r * Math.cos(phi));
+        atomGroup.add(mesh);
+      }
+
+      for (let i = 0; i < Math.min(eCount, 50); i++) {
+        const electron = new THREE.Mesh(electronGeo, matElectron);
+        const angle = (i / eCount) * Math.PI * 2;
+        electron.userData = { angle: angle, radius: 3.5, speed: 0.03 + (isCircuitOn ? volts * 0.001 : 0) };
+        atomGroup.add(electron);
+        electronMeshes.push(electron);
+      }
+
+      // 2. RECONSTRUÇÃO DO MATERIAL 3D
+      while(materialGroup.children.length > 0){ materialGroup.remove(materialGroup.children[0]); }
+
+      let matColor = new THREE.Color(elemData.color);
+      if (temp > elemData.melt && temp < elemData.boil) {
+        matColor.lerp(new THREE.Color(0xff6600), 0.4);
+      } else if (temp >= elemData.boil) {
+        matColor.lerp(new THREE.Color(0xffcc00), 0.6);
+      }
+
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: matColor,
+        roughness: elemData.isGas ? 0.9 : 0.2,
+        metalness: elemData.isGas ? 0.0 : 0.85,
+        clearcoat: 0.3
+      });
+
+      if (temp >= elemData.boil || elemData.isGas) {
+        for(let i = 0; i < 35; i++) {
+          const p = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), mat);
+          p.position.set((Math.random()-0.5)*4, (Math.random()-0.5)*4, (Math.random()-0.5)*4);
+          materialGroup.add(p);
+        }
+      } else {
+        const geom = (pCount === 6) ? new THREE.OctahedronGeometry(2, 0) : new THREE.DodecahedronGeometry(2, 0);
+        materialMesh = new THREE.Mesh(geom, mat);
+        materialGroup.add(materialMesh);
+      }
+    }
+
+    document.getElementById('protons').addEventListener('input', updateApp);
+    document.getElementById('neutrons').addEventListener('input', updateApp);
+    document.getElementById('electrons').addEventListener('input', updateApp);
+    document.getElementById('temp').addEventListener('input', updateApp);
+    document.getElementById('volts').addEventListener('input', updateApp);
+
+    setViewMode('atom');
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      electronMeshes.forEach(el => {
+        el.userData.angle += el.userData.speed;
+        el.position.x = el.userData.radius * Math.cos(el.userData.angle);
+        el.position.z = el.userData.radius * Math.sin(el.userData.angle);
+      });
+
+      if (currentView === 'circuit' && isCircuitOn) {
+        const volts = parseInt(document.getElementById('volts').value);
+        const speed = volts * 0.005;
+
+        circuitElectrons.forEach(e => {
+          e.position.x += speed;
+          if (e.position.x > 4.5) e.position.x = -4.5;
+        });
+      }
+
+      atomGroup.rotation.y += 0.005;
+      if (materialGroup.visible) materialGroup.rotation.y += 0.008;
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
